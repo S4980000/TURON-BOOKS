@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw")
 
 # Logging
 logging.basicConfig(level=logging.INFO)
