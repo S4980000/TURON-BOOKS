@@ -8,7 +8,6 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-# TOKENNI BEVOSITA KIRITILGAN
 BOT_TOKEN = "AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw"
 
 # Logging
@@ -54,9 +53,9 @@ async def book_chosen(callback_query: types.CallbackQuery, state: FSMContext):
 
     try:
         await bot.send_document(callback_query.from_user.id, types.InputFile(file_path))
-    except:
+    except Exception:
         await bot.send_message(callback_query.from_user.id, "❌ Fayl topilmadi.")
-    
+
     await state.finish()
 
 if __name__ == '__main__':
