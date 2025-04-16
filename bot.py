@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
@@ -8,10 +7,9 @@ from aiogram.dispatcher.filters import CommandStart
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from dotenv import load_dotenv
 
-# Load environment variables
-BOT_TOKEN = os.getenv("AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw")
+# TOKENNI BEVOSITA KIRITILGAN
+BOT_TOKEN = "AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw"
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -52,13 +50,13 @@ async def direction_chosen(callback_query: types.CallbackQuery, state: FSMContex
 @dp.callback_query_handler(lambda c: c.data.startswith("book:"), state=BookStates.waiting_for_book)
 async def book_chosen(callback_query: types.CallbackQuery, state: FSMContext):
     file_name = callback_query.data.split(":")[1]
-    file_path = os.path.join("books", file_name)
+    file_path = f"books/{file_name}"
 
-    if os.path.exists(file_path):
+    try:
         await bot.send_document(callback_query.from_user.id, types.InputFile(file_path))
-    else:
+    except:
         await bot.send_message(callback_query.from_user.id, "❌ Fayl topilmadi.")
-
+    
     await state.finish()
 
 if __name__ == '__main__':
