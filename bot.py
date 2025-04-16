@@ -11,7 +11,6 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
 BOT_TOKEN = os.getenv("AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw")
 
 # Logging
