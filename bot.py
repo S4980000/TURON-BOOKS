@@ -9,7 +9,6 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-# 👉 Tokenni shu yerga to‘g‘ridan-to‘g‘ri yozing
 BOT_TOKEN = "AAHWb2H1civWxgqJ6Ut7R0hmtGqqCxA_EOw"
 
 # 🔹 Logging
