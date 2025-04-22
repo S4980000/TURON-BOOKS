@@ -1,12 +1,31 @@
-.idea
-.venv
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
 .env
-venv
-*.pyc
-static
-media
-practise
+env/
+ENV/
+*.egg-info/
+
+# Django specific
+*.log
+*.pot
+local_settings.py
+db.sqlite3
+media/
+static/
+
+# System files
 .DS_Store
-.vscode
-pytest.ini
-havas.xml
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# OS generated files
+*.swp
+*.swo
