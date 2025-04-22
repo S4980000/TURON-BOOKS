@@ -1,0 +1,12 @@
+.idea
+.venv
+.env
+venv
+*.pyc
+static
+media
+practise
+.DS_Store
+.vscode
+pytest.ini
+havas.xml
