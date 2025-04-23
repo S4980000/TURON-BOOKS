@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_IDS = os.getenv("ADMIN_IDS", 757652114)
+ADMIN_IDS = os.getenv("ADMIN_IDS", "757652114")
 ADMIN_IDS = list(map(int, ADMIN_IDS.split(',')))
 
 from library.models import Category, Book
@@ -48,7 +48,7 @@ async def start_command(message: types.Message, state: FSMContext):
         Category.objects.filter(parent__isnull=True).order_by('name')
     )
     if not top_cats:
-        return await message.reply("❗ No categories available.")
+        return await message.reply("❗ Hech qanday bo‘lim mavjud emas.")
 
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
 
@@ -56,16 +56,16 @@ async def start_command(message: types.Message, state: FSMContext):
         kb.add(category.name)
 
     await state.update_data(parent_id=None)
-    await message.reply("📚 Select a category:", reply_markup=kb)
+    await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
     await BookStates.CHOOSING.set()
 
 
 @dp.message_handler(Command('add_book'), state='*')
 async def cmd_add_book(message: types.Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS:
-        return await message.reply("❌ You’re not allowed to add books.")
+        return await message.reply("❌ Sizga kitob qo‘shish huquqi berilmagan.")
     await state.finish()
-    await message.reply("📥 Please send the book file (as a document).",
+    await message.reply("📥 Iltimos, kitob faylini (hujjat sifatida) yuboring.",
                         reply_markup=types.ReplyKeyboardRemove())
     await AddBookStates.WAIT_FILE.set()
 
@@ -74,11 +74,11 @@ async def cmd_add_book(message: types.Message, state: FSMContext):
 async def add_book_file(message: types.Message, state: FSMContext):
     file_id = message.document.file_id
     await state.update_data(file_id=file_id)
-    # Prompt for caption, with a “skip” button
+    # Prompt for caption, with a "skip" button
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(types.KeyboardButton("Bo'sh qoldirish"))  # “Skip”
     await message.reply(
-        "✍️ Send a caption for this book, or press “Bo'sh qoldirish” to skip.",
+        "✍️ Ushbu kitob uchun izoh yuboring yoki o‘tish uchun “Bo'sh qoldirish” ni bosing.",
         reply_markup=kb
     )
     await AddBookStates.WAIT_CAPTION.set()
@@ -87,7 +87,7 @@ async def add_book_file(message: types.Message, state: FSMContext):
 @dp.message_handler(state=AddBookStates.WAIT_FILE, content_types=types.ContentType.ANY)
 async def enforce_document(message: types.Message):
     # if they send anything other than a document
-    return await message.reply("⚠️ Please send the book as a document file.")
+    return await message.reply("⚠️ Iltimos, kitobni hujjat sifatida yuboring.")
 
 
 @dp.message_handler(state=AddBookStates.WAIT_CAPTION, content_types=types.ContentType.TEXT)
@@ -102,14 +102,14 @@ async def add_book_caption(message: types.Message, state: FSMContext):
     )
     if not top_cats:
         await state.finish()
-        return await message.reply("❗ No categories available. Cancelling.")
+        return await message.reply("❗ Hech qanday bo‘lim mavjud emas. Bekor qilindi.")
 
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     for cat in top_cats:
         kb.add(cat.name)
 
     await state.update_data(parent_id=None)
-    await message.reply("📚 Select a category:", reply_markup=kb)
+    await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
     await AddBookStates.CHOOSING.set()
 
 
@@ -130,7 +130,7 @@ async def add_book_choose_category(message: types.Message, state: FSMContext):
     ).first)()
     if not chosen:
         return await message.reply(
-            "⚠️ Unknown category—please use the provided buttons."
+            "⚠️ Noma'lum bo‘lim – iltimos, tugmalardan foydalaning."
         )
 
     children = await sync_to_async(list)(
@@ -142,7 +142,7 @@ async def add_book_choose_category(message: types.Message, state: FSMContext):
             kb.add(cat.name)
         await state.update_data(parent_id=chosen.id)
         return await message.reply(
-            f"📂 Subcategories of *{chosen.name}*:",
+            f"📂 *{chosen.name}* bo‘limining kichik bo‘limlari:",
             reply_markup=kb,
             parse_mode="Markdown"
         )
@@ -155,7 +155,7 @@ async def add_book_choose_category(message: types.Message, state: FSMContext):
 
     await state.finish()
     await message.reply(
-        f"✅ Book saved under *{chosen.name}*!",
+        f"✅ Kitob *{chosen.name}* bo‘limiga saqlandi!",
         reply_markup=types.ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
@@ -174,7 +174,7 @@ async def pick_category(message: types.Message, state: FSMContext):
 
     if not chosen_cat:
         return await message.reply(
-            "⚠️ I didn’t recognize that category. Please choose using the buttons."
+            "⚠️ Noma'lum bo‘lim – iltimos, tugmalardan foydalaning."
         )
 
     children_cats = await sync_to_async(list)(
@@ -187,14 +187,14 @@ async def pick_category(message: types.Message, state: FSMContext):
             kb.add(child.name)
         await state.update_data(parent_id=chosen_cat.id)
         return await message.reply(
-            f"📂 Subcategories of *{chosen_cat.name}*:",
+            f"📂 *{chosen_cat.name}* bo‘limining kichik bo‘limlari:",
             reply_markup=kb, parse_mode="Markdown"
         )
 
     # leaf category reached → fetch books
     await state.finish()
     await message.reply(
-        f"📖 Fetching books in *{chosen_cat.name}*…",
+        f"📖 *{chosen_cat.name}* bo‘limidagi kitoblar yuklanmoqda…",
         reply_markup=types.ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
@@ -204,14 +204,13 @@ async def pick_category(message: types.Message, state: FSMContext):
     )
 
     if not books:
-        return await message.reply("🚫 No books found in this category.")
+        return await message.reply("🚫 Ushbu bo‘limda kitob topilmadi.")
 
-    # send each with 100  ms delay
-    print(books)
+    # send each with 100  ms delay
     for book in books:
         try:
             await bot.send_document(chat_id=message.chat.id, document=book.file_id, caption=book.caption)
-        except:
+        except Exception:
             logging.error(f'Sending file error with id: {book.id}')
         await asyncio.sleep(0.1)
 
