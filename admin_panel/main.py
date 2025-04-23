@@ -73,12 +73,15 @@ async def cmd_add_book(message: types.Message, state: FSMContext):
 @dp.message_handler(state=AddBookStates.WAIT_FILE, content_types=types.ContentType.DOCUMENT)
 async def add_book_file(message: types.Message, state: FSMContext):
     file_id = message.document.file_id
-    await state.update_data(file_id=file_id)
-    # Prompt for caption, with a "skip" button
+    file_caption = message.caption
+    await state.update_data(file_id=file_id, file_caption=file_caption)
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    kb.add(types.KeyboardButton("Bo'sh qoldirish"))  # “Skip”
+    kb.add(
+        types.KeyboardButton("Bo'sh qoldirish"),  # Skip without caption
+        types.KeyboardButton("O`zini izohini qoldirish")  # Use original file caption
+    )
     await message.reply(
-        "✍️ Ushbu kitob uchun izoh yuboring yoki o‘tish uchun “Bo'sh qoldirish” ni bosing.",
+        "✍️ Iltimos, ushbu kitob uchun izoh yuboring yoki quyidagilardan birini tanlang:",
         reply_markup=kb
     )
     await AddBookStates.WAIT_CAPTION.set()
@@ -93,10 +96,15 @@ async def enforce_document(message: types.Message):
 @dp.message_handler(state=AddBookStates.WAIT_CAPTION, content_types=types.ContentType.TEXT)
 async def add_book_caption(message: types.Message, state: FSMContext):
     text = message.text.strip()
-    caption = "" if text == "Bo'sh qoldirish" else text
+    if text == "Bo'sh qoldirish":
+        caption = ''
+    elif text == "O`zini izohini qoldirish":
+        data = await state.get_data()
+        caption = data.get('file_caption', '')
+    else:
+        caption = text
     await state.update_data(caption=caption)
 
-    # Now prompt for top-level category
     top_cats = await sync_to_async(list)(
         Category.objects.filter(parent__isnull=True).order_by('name')
     )
