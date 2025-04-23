@@ -6,7 +6,7 @@ import asyncio
 from asgiref.sync import sync_to_async
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.dispatcher.filters import CommandStart
+from aiogram.dispatcher.filters import CommandStart, Command
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_IDS = os.getenv("ADMIN_IDS", 757652114)
+ADMIN_IDS = list(map(int, ADMIN_IDS.split(',')))
 
 from library.models import Category, Book
 
@@ -33,7 +35,12 @@ class BookStates(StatesGroup):
     CHOOSING = State()
 
 
-# 🔹 Start command
+class AddBookStates(StatesGroup):
+    WAIT_FILE = State()
+    WAIT_CAPTION = State()
+    CHOOSING = State()
+
+
 @dp.message_handler(CommandStart())
 async def start_command(message: types.Message, state: FSMContext):
     await state.finish()
@@ -51,6 +58,107 @@ async def start_command(message: types.Message, state: FSMContext):
     await state.update_data(parent_id=None)
     await message.reply("📚 Select a category:", reply_markup=kb)
     await BookStates.CHOOSING.set()
+
+
+@dp.message_handler(Command('add_book'), state='*')
+async def cmd_add_book(message: types.Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.reply("❌ You’re not allowed to add books.")
+    await state.finish()
+    await message.reply("📥 Please send the book file (as a document).",
+                        reply_markup=types.ReplyKeyboardRemove())
+    await AddBookStates.WAIT_FILE.set()
+
+
+@dp.message_handler(state=AddBookStates.WAIT_FILE, content_types=types.ContentType.DOCUMENT)
+async def add_book_file(message: types.Message, state: FSMContext):
+    file_id = message.document.file_id
+    await state.update_data(file_id=file_id)
+    # Prompt for caption, with a “skip” button
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    kb.add(types.KeyboardButton("Bo'sh qoldirish"))  # “Skip”
+    await message.reply(
+        "✍️ Send a caption for this book, or press “Bo'sh qoldirish” to skip.",
+        reply_markup=kb
+    )
+    await AddBookStates.WAIT_CAPTION.set()
+
+
+@dp.message_handler(state=AddBookStates.WAIT_FILE, content_types=types.ContentType.ANY)
+async def enforce_document(message: types.Message):
+    # if they send anything other than a document
+    return await message.reply("⚠️ Please send the book as a document file.")
+
+
+@dp.message_handler(state=AddBookStates.WAIT_CAPTION, content_types=types.ContentType.TEXT)
+async def add_book_caption(message: types.Message, state: FSMContext):
+    text = message.text.strip()
+    caption = "" if text == "Bo'sh qoldirish" else text
+    await state.update_data(caption=caption)
+
+    # Now prompt for top-level category
+    top_cats = await sync_to_async(list)(
+        Category.objects.filter(parent__isnull=True).order_by('name')
+    )
+    if not top_cats:
+        await state.finish()
+        return await message.reply("❗ No categories available. Cancelling.")
+
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    for cat in top_cats:
+        kb.add(cat.name)
+
+    await state.update_data(parent_id=None)
+    await message.reply("📚 Select a category:", reply_markup=kb)
+    await AddBookStates.CHOOSING.set()
+
+
+@dp.message_handler(state=AddBookStates.CHOOSING, content_types=types.ContentType.TEXT)
+async def add_book_choose_category(message: types.Message, state: FSMContext):
+    """
+    Step through subcategories; when a leaf is chosen, grab stored file_id and caption
+    from state and create a new Book linked to that Category.
+    """
+    data = await state.get_data()
+    parent_id = data.get('parent_id')  # None at top level
+    file_id = data['file_id']  # set in WAIT_FILE
+    caption = data.get('caption', '')  # set in WAIT_CAPTION
+
+    chosen = await sync_to_async(Category.objects.filter(
+        name=message.text,
+        parent_id=parent_id
+    ).first)()
+    if not chosen:
+        return await message.reply(
+            "⚠️ Unknown category—please use the provided buttons."
+        )
+
+    children = await sync_to_async(list)(
+        Category.objects.filter(parent=chosen).order_by('name')
+    )
+    if children:
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        for cat in children:
+            kb.add(cat.name)
+        await state.update_data(parent_id=chosen.id)
+        return await message.reply(
+            f"📂 Subcategories of *{chosen.name}*:",
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
+
+    await sync_to_async(Book.objects.create)(
+        category=chosen,
+        file_id=file_id,
+        caption=caption
+    )
+
+    await state.finish()
+    await message.reply(
+        f"✅ Book saved under *{chosen.name}*!",
+        reply_markup=types.ReplyKeyboardRemove(),
+        parse_mode="Markdown"
+    )
 
 
 @dp.message_handler(state=BookStates.CHOOSING, content_types=types.ContentTypes.TEXT)
