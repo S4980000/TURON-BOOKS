@@ -41,6 +41,27 @@ class AddBookStates(StatesGroup):
     WAIT_CAPTION = State()
     CHOOSING = State()
 
+# default number of buttons per row in keyboards
+ROW_SIZE = 3
+
+
+def build_keyboard(options, include_back=False, row_size=ROW_SIZE):
+    """
+    Build a ReplyKeyboardMarkup with buttons for each option.
+    If include_back=True, add an "Ortga" button in its own top row.
+    Then arrange option buttons into rows of length `row_size`.
+    """
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    # add back button as a separate row if requested
+    if include_back:
+        kb.row(types.KeyboardButton("Ortga"))
+    # create buttons for options
+    buttons = [types.KeyboardButton(opt) for opt in options]
+    # chunk into rows
+    for i in range(0, len(buttons), row_size):
+        kb.row(*buttons[i:i+row_size])
+    return kb
+
 
 @dp.message_handler(CommandStart())
 async def start_command(message: types.Message, state: FSMContext):
@@ -51,11 +72,8 @@ async def start_command(message: types.Message, state: FSMContext):
     if not top_cats:
         return await message.reply("❗ Hech qanday bo‘lim mavjud emas.")
 
-    # Build keyboard with back button at top
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add(types.KeyboardButton("Ortga"))
-    for category in top_cats:
-        kb.add(category.name)
+    names = [cat.name for cat in top_cats]
+    kb = build_keyboard(names, include_back=False)
 
     await state.update_data(parent_id=None)
     await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
@@ -80,10 +98,11 @@ async def add_book_file(message: types.Message, state: FSMContext):
     file_caption = message.caption or ''
     await state.update_data(file_id=file_id, file_caption=file_caption)
 
-    # Prompt for caption with skip and use-original buttons, plus back
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add(types.KeyboardButton("Ortga"))
-    kb.add(types.KeyboardButton("Bo'sh qoldirish"), types.KeyboardButton("O`zini izohini qoldirish"))
+    # Prompt for caption with skip and use-original buttons
+    kb = build_keyboard([
+        "Bo'sh qoldirish",
+        "O`zini izohini qoldirish"
+    ], include_back=False, row_size=2)
     await message.reply(
         "✍️ Iltimos, ushbu kitob uchun izoh yuboring yoki quyidagilardan birini tanlang:",
         reply_markup=kb
@@ -100,16 +119,6 @@ async def enforce_document(message: types.Message):
 async def add_book_caption(message: types.Message, state: FSMContext):
     text = message.text.strip()
 
-    # Handle back to file upload
-    if text == "Ortga":
-        await state.finish()
-        await message.reply(
-            "📥 Iltimos, kitob faylini (hujjat sifatida) qayta yuboring.",
-            reply_markup=types.ReplyKeyboardRemove()
-        )
-        await AddBookStates.WAIT_FILE.set()
-        return
-
     # Determine caption
     if text == "Bo'sh qoldirish":
         caption = ''
@@ -120,7 +129,7 @@ async def add_book_caption(message: types.Message, state: FSMContext):
         caption = text
     await state.update_data(caption=caption)
 
-    # Prompt for top-level category with back
+    # Prompt for category (top-level) without back
     top_cats = await sync_to_async(list)(
         Category.objects.filter(parent__isnull=True).order_by('name')
     )
@@ -128,10 +137,8 @@ async def add_book_caption(message: types.Message, state: FSMContext):
         await state.finish()
         return await message.reply("❗ Hech qanday bo‘lim mavjud emas. Bekor qilindi.")
 
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add(types.KeyboardButton("Ortga"))
-    for cat in top_cats:
-        kb.add(cat.name)
+    names = [cat.name for cat in top_cats]
+    kb = build_keyboard(names, include_back=False)
 
     await state.update_data(parent_id=None)
     await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
@@ -143,55 +150,49 @@ async def add_book_choose_category(message: types.Message, state: FSMContext):
     text = message.text
     data = await state.get_data()
     parent_id = data.get('parent_id')
+    file_id = data['file_id']
+    caption = data.get('caption', '')
 
-    # Back button logic
+    # Handle back
     if text == "Ortga":
-        # Compute new parent level
         if parent_id is None:
             new_parent_id = None
         else:
             parent_cat = await sync_to_async(Category.objects.get)(id=parent_id)
             new_parent_id = parent_cat.parent_id
-        # Load categories at this level
-        cats = await sync_to_async(list)(
-            Category.objects.filter(parent_id=new_parent_id).order_by('name')
-        )
-        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        kb.add(types.KeyboardButton("Ortga"))
-        for cat in cats:
-            kb.add(cat.name)
+        cats_query = Category.objects.filter(parent_id=new_parent_id).order_by('name')
+        cats = await sync_to_async(list)(cats_query)
+        names = [cat.name for cat in cats]
+        kb = build_keyboard(names, include_back=(new_parent_id is not None))
         await state.update_data(parent_id=new_parent_id)
         return await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
 
-    # Leaf or drill-down
-    file_id = data['file_id']
-    caption = data.get('caption', '')
+    # Find chosen
     chosen = await sync_to_async(Category.objects.filter(
         name=text, parent_id=parent_id
     ).first)()
     if not chosen:
         return await message.reply("⚠️ Noma'lum bo‘lim – iltimos, tugmalardan foydalaning.")
 
+    # Check children
     children = await sync_to_async(list)(
         Category.objects.filter(parent=chosen).order_by('name')
     )
     if children:
-        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        kb.add(types.KeyboardButton("Ortga"))
-        for cat in children:
-            kb.add(cat.name)
+        names = [c.name for c in children]
+        kb = build_keyboard(names, include_back=True)
         await state.update_data(parent_id=chosen.id)
         return await message.reply(
             f"📂 *{chosen.name}* bo‘limining kichik bo‘limlari:",
             reply_markup=kb, parse_mode="Markdown"
         )
 
-    # Leaf reached: save book
+    # Leaf: save
     await sync_to_async(Book.objects.create)(
         category=chosen, file_id=file_id, caption=caption
     )
     await state.finish()
-    await message.reply(
+    return await message.reply(
         f"✅ Kitob *{chosen.name}* bo‘limiga saqlandi!",
         parse_mode="Markdown"
     )
@@ -203,7 +204,7 @@ async def pick_category(message: types.Message, state: FSMContext):
     data = await state.get_data()
     parent_id = data.get('parent_id')
 
-    # Back button logic
+    # Handle back
     if text == "Ortga":
         if parent_id is None:
             new_parent_id = None
@@ -213,13 +214,12 @@ async def pick_category(message: types.Message, state: FSMContext):
         cats = await sync_to_async(list)(
             Category.objects.filter(parent_id=new_parent_id).order_by('name')
         )
-        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        kb.add(types.KeyboardButton("Ortga"))
-        for cat in cats:
-            kb.add(cat.name)
+        names = [c.name for c in cats]
+        kb = build_keyboard(names, include_back=(new_parent_id is not None))
         await state.update_data(parent_id=new_parent_id)
         return await message.reply("📚 Bo‘limni tanlang:", reply_markup=kb)
 
+    # Find chosen
     chosen_cat = await sync_to_async(Category.objects.filter(
         name=text, parent_id=parent_id
     ).first)()
@@ -228,34 +228,29 @@ async def pick_category(message: types.Message, state: FSMContext):
 
     children = await sync_to_async(list)(chosen_cat.children.all())
     if children:
-        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        kb.add(types.KeyboardButton("Ortga"))
-        for child in children:
-            kb.add(child.name)
+        names = [c.name for c in children]
+        kb = build_keyboard(names, include_back=True)
         await state.update_data(parent_id=chosen_cat.id)
         return await message.reply(
             f"📂 *{chosen_cat.name}* bo‘limining kichik bo‘limlari:",
             reply_markup=kb, parse_mode="Markdown"
         )
 
-    await state.finish()
-    await message.reply(
-        f"📖 *{chosen_cat.name}* bo‘limidagi kitoblar yuklanmoqda…",
-        parse_mode="Markdown"
-    )
-
+    # Leaf: send books immediately
     books = await sync_to_async(list)(
         chosen_cat.books.all().order_by('-created_date')
     )
     if not books:
         return await message.reply("🚫 Ushbu bo‘limda kitob topilmadi.")
-
     for book in books:
         try:
             await bot.send_document(message.chat.id, book.file_id, caption=book.caption)
         except Exception:
             logging.error(f'Sending file error with id: {book.id}')
         await asyncio.sleep(0.1)
+
+    # Keep same keyboard
+    return
 
 
 if __name__ == '__main__':
