@@ -42,7 +42,7 @@ class AddBookStates(StatesGroup):
     CHOOSING = State()
 
 # default number of buttons per row in keyboards
-ROW_SIZE = 3
+ROW_SIZE = 2
 
 
 def build_keyboard(options, include_back=False, row_size=ROW_SIZE):
