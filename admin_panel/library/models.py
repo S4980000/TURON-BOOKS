@@ -14,6 +14,7 @@ class Category(models.Model):
 class Book(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='books')
     file_id = models.CharField(max_length=512)
+    file_name = models.CharField(max_length=512)
     caption = models.TextField()
 
     created_date = models.DateTimeField(auto_now_add=True)
