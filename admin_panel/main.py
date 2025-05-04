@@ -26,9 +26,9 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 from django.contrib.auth.models import User
-ADMIN_IDS = User.objects.all().values_list('first_name', flat=True)
-
 from library.models import Category, Book
+
+# ADMIN_IDS = User.objects.all().values_list('first_name', flat=True)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -41,6 +41,7 @@ class BookStates(StatesGroup):
 class AddBookStates(StatesGroup):
     CHOOSING = State()
     WAIT_FILE = State()
+
 
 # default number of buttons per row in keyboards
 ROW_SIZE = 2
@@ -60,11 +61,11 @@ def build_keyboard(options, include_back=False, row_size=ROW_SIZE):
     buttons = [types.KeyboardButton(opt) for opt in options]
     # chunk into rows
     for i in range(0, len(buttons), row_size):
-        kb.row(*buttons[i:i+row_size])
+        kb.row(*buttons[i:i + row_size])
     return kb
 
 
-@dp.message_handler(CommandStart())
+@dp.message_handler(CommandStart(), state="*")
 async def start_command(message: types.Message, state: FSMContext):
     await state.finish()
     top_cats = await sync_to_async(list)(
@@ -83,6 +84,9 @@ async def start_command(message: types.Message, state: FSMContext):
 
 @dp.message_handler(Command('add_book'), state='*')
 async def cmd_add_book(message: types.Message, state: FSMContext):
+    ADMIN_IDS = await sync_to_async(list)(
+        User.objects.values_list('id', flat=True)
+    )
     if message.from_user.id not in ADMIN_IDS:
         return await message.reply("❌ Sizga kitob qo‘shish huquqi berilmagan.")
     await state.finish()
