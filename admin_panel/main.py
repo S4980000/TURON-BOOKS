@@ -87,7 +87,7 @@ async def cmd_add_book(message: types.Message, state: FSMContext):
     ADMIN_IDS = await sync_to_async(list)(
         User.objects.exclude(first_name='').values_list('first_name', flat=True)
     )
-    if message.from_user.id not in ADMIN_IDS:
+    if str(message.from_user.id) not in ADMIN_IDS:
         await state.finish()
         await message.reply("❌ Sizga kitob qo‘shish huquqi berilmagan.")
         return await start_command(message, state)
@@ -203,7 +203,8 @@ async def process_book_confirmation(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply("❌ Kitob qo‘shish bekor qilindi.", reply_markup=types.ReplyKeyboardRemove())
     else:
-        return await message.reply("⚠️ Noma'lum buyruq – iltimos, tugmalardan foydalaning.")
+        await message.reply("⚠️ Noma'lum buyruq – iltimos, tugmalardan foydalaning.")
+    return await start_command(message, state)
 
 
 @dp.message_handler(state=AddBookStates.WAIT_FILE, content_types=types.ContentType.ANY)
