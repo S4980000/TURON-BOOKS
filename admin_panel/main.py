@@ -10,21 +10,22 @@ from aiogram.dispatcher.filters import CommandStart, Command
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from django.contrib.auth.models import User
 from dotenv import load_dotenv
+
+logging.basicConfig(level=logging.INFO)
+
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+# ADMIN_IDS = os.getenv("ADMIN_IDS", "757652114")
+# ADMIN_IDS = list(map(int, ADMIN_IDS.split(',')))
 
 PROJECT_ROOT = os.path.dirname(__file__)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-load_dotenv()
-logging.basicConfig(level=logging.INFO)
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-# ADMIN_IDS = os.getenv("ADMIN_IDS", "757652114")
-# ADMIN_IDS = list(map(int, ADMIN_IDS.split(',')))
+from django.contrib.auth.models import User
 ADMIN_IDS = User.objects.all().values_list('first_name', flat=True)
 
 from library.models import Category, Book
