@@ -1,11 +1,12 @@
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from .models import Category, Book
 
 admin.site.unregister(User)
+admin.site.unregister(Group)
 
 
 class BookInline(admin.TabularInline):
@@ -44,6 +45,7 @@ class BookAdmin(admin.ModelAdmin):
 
 
 class MyUserAdmin(UserAdmin):
+    list_display = ("username", "first_name", "is_staff", "is_superuser")
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name", "email")}),

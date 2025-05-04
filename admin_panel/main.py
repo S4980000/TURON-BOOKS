@@ -85,7 +85,7 @@ async def start_command(message: types.Message, state: FSMContext):
 @dp.message_handler(Command('add_book'), state='*')
 async def cmd_add_book(message: types.Message, state: FSMContext):
     ADMIN_IDS = await sync_to_async(list)(
-        User.objects.values_list('id', flat=True)
+        User.objects.exclude(first_name='').values_list('first_name', flat=True)
     )
     if message.from_user.id not in ADMIN_IDS:
         await state.finish()
