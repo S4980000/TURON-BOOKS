@@ -21,4 +21,4 @@ class Book(models.Model):
     updated_date = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'{self.pk} {self.caption[:25]}'
+        return f'{self.pk} {self.file_name} {self.caption[:25]}'

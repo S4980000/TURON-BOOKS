@@ -6,7 +6,7 @@ from .models import Category, Book
 class BookInline(admin.TabularInline):
     model = Book
     extra = 1
-    fields = ("caption", "file_id")
+    fields = ("file_name", "caption", "file_id")
     readonly_fields = ("created_date", "updated_date")
     show_change_link = True
 
@@ -26,9 +26,9 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ("short_caption", "category", "created_date")
+    list_display = ("file_name", "short_caption", "category", "created_date")
     list_filter = ("category__parent", "category")
-    search_fields = ("caption",)
+    search_fields = ("caption", "file_name")
     readonly_fields = ("created_date", "updated_date")
     autocomplete_fields = ("category",)
 
