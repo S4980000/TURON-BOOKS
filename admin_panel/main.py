@@ -88,7 +88,10 @@ async def cmd_add_book(message: types.Message, state: FSMContext):
         User.objects.values_list('id', flat=True)
     )
     if message.from_user.id not in ADMIN_IDS:
-        return await message.reply("❌ Sizga kitob qo‘shish huquqi berilmagan.")
+        await state.finish()
+        await message.reply("❌ Sizga kitob qo‘shish huquqi berilmagan.")
+        await start_command(message, state)
+
     await state.finish()
     top_cats = await sync_to_async(list)(
         Category.objects.filter(parent__isnull=True).order_by('name')
