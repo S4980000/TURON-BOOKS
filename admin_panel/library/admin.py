@@ -19,13 +19,16 @@ class BookInline(admin.TabularInline):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "parent", "book_count")
+    list_display = ("name", "parent", "grand_parent", "book_count")
     list_filter = ("parent",)
     search_fields = ("name",)
     inlines = [BookInline]
 
     def book_count(self, obj):
         return obj.books.count()
+
+    def grand_parent(self, obj):
+        return getattr(obj.parent, 'parent', None)
 
     book_count.short_description = "Books in this category"
 
