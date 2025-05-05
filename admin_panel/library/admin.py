@@ -20,7 +20,7 @@ class BookInline(admin.TabularInline):
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "parent", "grand_parent", "book_count")
-    list_filter = ("parent",)
+    list_filter = ("name", "parent")
     search_fields = ("name",)
     inlines = [BookInline]
 
